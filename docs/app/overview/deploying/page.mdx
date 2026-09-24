@@ -1,0 +1,73 @@
+# Deploying
+
+What is in the repository is what runs. The policy is built from the
+distribution's `policies/` and every module's own when the distribution is
+deployed, and each service runs the copy built with it. There is no workflow
+to run, nothing to publish, and no key to keep.
+
+## Built once
+
+`policies/` is a workspace package whose `build` is `fg-dist policy build`,
+so turbo builds it once, however many services run it, and caches it until a
+rule or setting in any layer changes. Each service's build then takes a copy:
+
+```json
+{ "build": "fg-dist policy use && next build" }
+```
+
+`fg-dist policy setup` writes what turbo needs: the policy's own tasks, which
+read every module's `policies/` as well as its own, and each service whose
+build uses it waiting for it. `fg-dist policy setup --check` fails when that
+is out of date, for CI.
+
+`fg-dist policy use` puts the bundle at `.policy/policies.tar.gz` in the
+service. `@fairgarden/policy` reads it from there, and Next traces it into the
+deployment. Outside a distribution — a service built on its own — there is
+nothing to copy, and its built-in rules decide.
+
+Building needs the opa CLI. Where there is none, as on Vercel, `fg-policy`
+fetches a pinned release, checks it against its known SHA-256, and caches it.
+
+## Why nothing is signed
+
+A deployment builds its policy from the same commit as its code, so the
+repository's history is the record of who changed what, and who approved it.
+A signature from the same build would add nothing.
+
+## Outside the repository
+
+Something that cannot build from the repository — another deployment, an
+OPA server — can be given a signed bundle instead:
+
+```bash
+fg-policy keygen                                   # once; the private key goes in a secret
+FG_POLICY_SIGNING_KEY=… fg-dist policy build        # signs what it builds
+```
+
+and runs it only when the signature is the organization's:
+
+```bash
+FG_POLICY_BUNDLE=https://policy.example.org/policies.tar.gz
+FG_POLICY_PUBLIC_KEY='{"kty":"EC",…}'
+```
+
+Signatures are made and checked the way OPA's are, so an OPA server given the
+same key runs the same bundle (`FG_POLICY_OPA_URL` then asks it). While one
+key replaces another, give the services both, as a JWK Set.
+
+One caution for an OPA server: OPA 1.21 cannot load a WebAssembly bundle
+whose decisions have `related_resources` in their `# METADATA` — it fails
+reading the manifest. The services here read it fine; an OPA server needs
+those links left out.
+
+## Settings
+
+| Variable | |
+| --- | --- |
+| `FG_POLICY_BUNDLE` | a bundle from elsewhere, as a path or https URL, which must be signed; or `none` for the built-in rules |
+| `FG_POLICY_PUBLIC_KEY` | the organization's public key: PEM, a JWK, or a JWK Set; text or base64 |
+| `FG_POLICY_ALLOW_UNSIGNED` | `true` to run an unsigned `FG_POLICY_BUNDLE`, for trying policy locally |
+| `FG_POLICY_OPA_URL` | an OPA server to ask instead |
+
+With none set, the deployment's own bundle runs, or the built-in rules when
+there is none.

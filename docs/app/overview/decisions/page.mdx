@@ -1,0 +1,59 @@
+# Decisions
+
+A service describes its decisions as a type: the name of each, what it is
+asked, and what it answers.
+
+```ts
+type IdDecisions = {
+  authz: {
+    input: { user: { name: string | null }; verb: string; resource: { resource: string; owner?: string } }
+    result: { allow: boolean; reason?: string }
+  }
+  release: {
+    input: { user: { name: string }; client: { id: string }; scopes: string[] }
+    result: { scopes: string[]; reasons?: Record<string, string> }
+  }
+}
+```
+
+and answers them with `createPolicy`:
+
+```ts
+const policy = createPolicy<IdDecisions>({
+  package: 'fairgarden/id',
+  builtIn: {
+    authz: ({ user, resource }) =>
+      resource.owner && resource.owner !== user.name
+        ? { allow: false, reason: 'That belongs to someone else.' }
+        : { allow: user.name !== null },
+    release: ({ scopes }) => ({ scopes }),
+  },
+})
+
+const { allow, reason } = await policy.decide('authz', input)
+```
+
+## Built-in rules
+
+Every decision has them. They answer when there is no organization policy,
+and for any decision the organization's policy has no rule for — so a
+service behaves the same without one, and works on its own, outside a
+distribution. The Rego a service ships decides the same way until an
+organization adds to it.
+
+## Inputs
+
+Name inputs after something a policy author already knows. The id service's
+`authz` input is a Kubernetes SubjectAccessReview's attributes — `user`,
+`verb`, `resource` with its group, version, name and owner — so a Rego rule
+reads the way an RBAC rule does. Put who the decision is about in
+`input.user.name`: the decision log files entries under it.
+
+## Failing closed
+
+`decide` throws `PolicyUnavailableError` when a decision cannot be made: the
+rule has no value for the input, the bundle cannot be read or was refused,
+the OPA server does not answer, a built-in rule throws. Treat it as no. A
+refused bundle decides nothing at all, not even what the built-in rules
+would: running rules nobody vouched for is worse than running none. The
+failure is logged like any other decision, with `error` in place of `result`.

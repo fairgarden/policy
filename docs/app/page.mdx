@@ -1,0 +1,33 @@
+# @fairgarden/policy
+
+A community organization's policy for the services it runs, as
+[Open Policy Agent](https://www.openpolicyagent.org) Rego: written and kept by
+the organization, shown in full to the people it governs, run inside each
+service, and every decision recorded.
+
+A service names the decisions it makes — may this person do this, may they
+join, what may this service be given — and asks them with the evidence it
+holds. Its own rules answer, until the organization's do. The organization
+writes its rules the way it writes its bylaws: in the open, changed by the
+group over time, and released with the rest of the distribution.
+
+## Start here
+
+- [Overview](/overview) — who writes what, and how it reaches the services
+- [Layers](/overview/layers) — the services' rules, and the organization's on top
+- [Bylaws as policy](/overview/bylaws) — sign-offs, votes, volunteer hours and elections, as Rego
+- [Decisions](/overview/decisions) — naming them, built-in rules, failing closed
+- [Rego](/overview/rego) — writing and testing it
+- [Deploying](/overview/deploying) — built from the repository, once, for every service
+- [The decision log](/overview/decision-log) — every decision, and the revision that made it
+- [Commands](/commands) — `fg-policy`
+- [Functions](/functions) — the API
+
+## Install
+
+```bash
+pnpm add @fairgarden/policy
+```
+
+Building and testing Rego use the [opa CLI](https://www.openpolicyagent.org/docs/#1-download-opa),
+fetching a pinned release when none is installed. Running a policy does not.

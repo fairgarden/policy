@@ -1,0 +1,71 @@
+# Rego
+
+Each decision is a rule of the same name in the service's Rego package:
+`fairgarden/members/admit` is the rule `admit` in `package fairgarden.members`.
+A service's `policies/` holds its package, and marks each decision with
+`entrypoint: true`:
+
+```rego
+# METADATA
+# title: Your membership
+# description: Who may join, and what other services learn about your membership.
+package fairgarden.members
+
+import rego.v1
+
+# METADATA
+# title: Who may join
+# description: >-
+#   Anyone who signs in may join, unless the organization's rules say they
+#   must do something first; then you are told what.
+# entrypoint: true
+admit := {"allow": count(unmet) == 0, "status": status, "reasons": unmet}
+```
+
+The `title` and `description` of the package and of each decision are what
+members read on the policy page, so write them for members. Rules without
+`entrypoint: true` are helpers.
+
+## Where the organization's go
+
+In the distribution's `policies/`, in the service's package, adding to its
+[extension points](/overview/layers#extension-points):
+
+```
+policies/
+  .manifest
+  fairgarden/
+    members/
+      admission.rego
+      admission_test.rego
+      settings/data.json
+```
+
+## Testing
+
+```bash
+fg-dist policy test
+```
+
+runs each service's tests on its own rules, then the organization's tests on
+everything together. Test what members will be told, not only what is
+allowed: the reasons are part of the answer.
+
+## Building
+
+```bash
+fg-dist policy build
+```
+
+compiles every layer to WebAssembly in one bundle, keeping each `.rego` file
+as written for the policy page. See [Deploying](/overview/deploying).
+
+## An OPA server instead
+
+```ts
+source: { engine: 'server', url: 'http://opa:8181' }
+```
+
+asks OPA's data API, `POST /v1/data/fairgarden/id/authz`, with a two-second
+timeout (`timeoutMs`), for services that already run OPA. An OPA server does
+not say what its rules are, so the policy page cannot show them.

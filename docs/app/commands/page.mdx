@@ -1,0 +1,57 @@
+# Commands
+
+`fg-policy` builds, tests, signs and checks a policy. In a distribution,
+[`fg-dist policy`](https://github.com/fairgarden/distribution) finds the layers
+and calls it; call it yourself for a service on its own, or a policy outside a
+distribution.
+
+Building and testing use the opa CLI at `OPA`, or on the `PATH`, or else fetch
+a pinned release of it, checked against its known SHA-256, into
+`node_modules/.cache/fg-policy`.
+
+## `build`
+
+```bash
+fg-policy build [--dir DIR] [--base DIR…] [--parent DIR…] [--out FILE]
+                [--release VERSION | --revision REV] [--signing-key FILE] [--key-id ID]
+```
+
+Builds `DIR` (default `policies/`) on top of each `--parent` and each `--base`
+(a directory, or a glob such as `'apps/*/policies'`) into one bundle, written
+to `FILE` (default `DIR.tar.gz`), and describes it.
+
+The revision is `VERSION` (default: the version in the nearest `package.json`)
+and a digest of the rules and settings; or `REV`, whole. The commit comes from
+`VERCEL_GIT_COMMIT_SHA`, `GITHUB_SHA` or git.
+
+Signed with `--signing-key`, or the PEM (or base64 PEM) in
+`FG_POLICY_SIGNING_KEY`, only for a bundle that leaves the repository. The key
+id defaults to the key's RFC 7638 thumbprint.
+
+## `test`
+
+```bash
+fg-policy test [--dir DIR] [--base DIR…] [--parent DIR…]
+```
+
+Runs each base's tests on its own rules, then `DIR`'s tests on all of them.
+
+## `keygen`
+
+```bash
+fg-policy keygen [--out FILE] [--alg ES256|RS256]
+```
+
+Writes a signing key to `FILE` (default `policy-signing-key.pem`), refusing to
+overwrite one, and prints its public half as a JWK, for `FG_POLICY_PUBLIC_KEY`.
+
+## `inspect`
+
+```bash
+fg-policy inspect [BUNDLE] [--public-key KEY] [--allow-unsigned] [--json]
+```
+
+Checks `BUNDLE` (default `policies.tar.gz`) is signed by `KEY` (a file, or the
+key itself; default `FG_POLICY_PUBLIC_KEY`) and describes it — or, with
+`--json`, prints everything the policy page shows. Exits 2 when a service would
+refuse it.

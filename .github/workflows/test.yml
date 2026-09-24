@@ -1,0 +1,53 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions: {}
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      # Pin these to a commit sha once Renovate is watching the repository.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            pnpm install --frozen-lockfile
+          else
+            # A module developed inside a distribution keeps its lockfile there.
+            pnpm install --no-frozen-lockfile
+          fi
+
+      # The CLI the WebAssembly tests compile with.
+      - name: Build
+        run: pnpm build
+
+      # Only to compile the test policy; nothing here runs OPA.
+      - uses: open-policy-agent/setup-opa@v2
+        with:
+          version: latest
+
+      - name: Unit tests
+        run: pnpm test

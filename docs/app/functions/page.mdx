@@ -1,0 +1,98 @@
+# Functions
+
+```ts
+import {
+  createPolicy,
+  policySourceFromEnv,
+  deploymentBundle,
+  readBundle,
+  disclose,
+  jsonLinesLogger,
+  erase,
+  PolicyUnavailableError,
+  BundleRejectedError,
+} from '@fairgarden/policy'
+import { decisionLogTable, drizzleLogger, revisionTable, drizzleRevisions, toEntry, newestFirst } from '@fairgarden/policy/drizzle'
+import { buildBundle, testLayers, findLayers, findOpa } from '@fairgarden/policy/build'
+```
+
+## `createPolicy(options)`
+
+| Option | |
+| --- | --- |
+| `package` | the service's Rego package, as a path or dotted |
+| `builtIn` | a function per decision: the rules when the policy has none |
+| `source` | the organization's policy; usually `policySourceFromEnv()` |
+| `loggers` | where every decision is recorded |
+| `onRevision` | given each revision of the policy the first time it runs, to keep it |
+| `labels` | added to every entry's labels |
+| `erase` | JSON pointers per decision, left out of the log |
+| `timeoutMs` | an OPA server's time to answer; default 2000 |
+| `fetch` | for URLs and servers; default the global |
+
+Returns:
+
+- `decide(decision, input)` — the result, or throws `PolicyUnavailableError`
+  (with `path`, and the reason as `cause`), which is to be taken as no.
+- `disclose()` — the policy in force, for the people it governs; undefined for
+  the built-in rules or an OPA server; throws `BundleRejectedError` when the
+  bundle was refused, saying why.
+- `engine` — `builtin`, `bundle` or `server`.
+
+`source` is `{ engine: 'bundle', source, publicKey?, allowUnsigned? }` —
+`source` a path, an https URL or the bytes — or `{ engine: 'server', url }`.
+
+## `policySourceFromEnv(env?)`
+
+The source every service in a deployment shares: `FG_POLICY_OPA_URL`, or
+`FG_POLICY_BUNDLE` (with `FG_POLICY_PUBLIC_KEY`), or the deployment's own
+bundle (`deploymentBundle()`), or undefined for the built-in rules. See
+[Deploying](/overview/deploying#settings).
+
+## Bundles
+
+- `readBundle(archive, { publicKey?, allowUnsigned? })` — its manifest, data,
+  compiled module and files, with its signature checked the way OPA checks
+  one. Throws `BundleRejectedError` when it is unsigned, changed after it was
+  signed, or signed by someone else, unless told to allow that.
+- `disclose(bundle)` — what the policy page shows: revision, commit, signer,
+  the organization's `metadata`, layers, and each package's title,
+  description, related resources, decisions and Rego as written.
+- `deploymentBundle()` — the bytes of `.policy/policies.tar.gz` in the working
+  directory, if there are any.
+
+## Building
+
+From `@fairgarden/policy/build`, which needs Node and the opa CLI:
+
+- `findLayers(dir, bases, cwd?, parents?)` — the layers, bases first.
+- `buildBundle({ layers, out, version?, revision?, signingKey?, keyId? })` —
+  builds and writes the bundle, and returns it read back.
+- `testLayers(layers)` — each base's tests, then the organization's on all.
+- `findOpa()` — the opa CLI, fetched when there is none.
+
+## Loggers
+
+- `jsonLinesLogger(write?)` — each entry as a line of JSON; standard output
+  unless given somewhere else to write.
+- `drizzleLogger(database, table, { subject? })` — into a table made by
+  `decisionLogTable`. `database` is called for each entry, so it can open a
+  connection lazily.
+
+## Postgres, through Drizzle
+
+- `decisionLogTable(name)` — a table: `id`, `path`, `subject`, `input`,
+  `result`, `error`, `labels`, `erased`, `evaluation_ns`, `decided_at`, indexed
+  by subject and time. `toRow`, `toEntry` and `newestFirst` go with it.
+- `revisionTable(name)` — each revision run: `revision`, `disclosure`,
+  `first_used_at`.
+- `drizzleRevisions(database, table)` — `record(disclosure)`, for `onRevision`,
+  and `find(revision)`.
+
+`drizzle-orm` is an optional peer dependency, only needed for these.
+
+## `erase(entry, pointers)`
+
+The entry without what the pointers name, and with them listed in `erased`.
+`createPolicy` does this with `erase`; it is exported for loggers that want
+their own.

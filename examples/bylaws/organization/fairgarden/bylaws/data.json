@@ -1,0 +1,6 @@
+{
+  "signoffs": 2,
+  "voting_hours": 25,
+  "removal": 0.5,
+  "offices": { "secretary": { "elected": true } }
+}

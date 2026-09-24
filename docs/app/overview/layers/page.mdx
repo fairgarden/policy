@@ -1,0 +1,92 @@
+# Layers
+
+A policy is built in layers, so that upgrading a service brings its rules
+along and the organization's choices survive it.
+
+| Layer | Where | Changes when |
+| --- | --- | --- |
+| each service's own | `apps/<service>/policies/` | the service is upgraded |
+| a parent's | the published `policies/` of a distribution this one extends | the parent is upgraded |
+| the organization's | the distribution's `policies/`, with its `.manifest` | the organization changes it |
+
+Rego from every layer is compiled into one bundle. A service's own layer asks
+its questions and leaves places for the organization's rules; the
+organization's files, in the same Rego package, fill them in.
+
+## Extension points
+
+A service's rules decide from rules that are empty until an organization adds
+to them. The members service's `admit`:
+
+```rego
+package fairgarden.members
+
+admit := {"allow": count(unmet) == 0, "status": status, "reasons": unmet}
+
+default status := "active"
+
+# Nothing, until an organization adds to it.
+unmet[requirement] := reason if {
+	false
+	requirement := ""
+	reason := ""
+}
+```
+
+and an organization's `policies/fairgarden/members/admission.rego`:
+
+```rego
+package fairgarden.members
+
+# Article II §1: new members join on probation.
+status := "probationary"
+
+# Article II §3: referred by an active member.
+unmet["referral"] := "A member needs to refer you. Ask one for a referral link." if {
+	not input.referral.by.status == "active"
+}
+```
+
+Upgrading members replaces its file and leaves this one alone. Each service's
+file lists its extension points at the top, and its docs say what its inputs
+hold.
+
+Two cautions. A rule both layers give different values at once is an error
+when the policy is evaluated — so extension points are sets and objects keyed
+by what they are about, where each layer adds its own keys. And a helper rule
+the organization names in a service's package can collide with one the
+service adds later: prefix yours, or keep them in a package of your own.
+
+## Settings
+
+`data.json` files are settings the rules read, at the path of their
+directory: `policies/fairgarden/bylaws/data.json` is `data.fairgarden.bylaws`.
+Settings from every layer are merged, the organization's winning — so a
+service can ship defaults an organization overrides without writing Rego.
+
+## The organization's `.manifest`
+
+It marks `policies/` as the organization's, and says who they are:
+
+```json
+{
+  "roots": ["fairgarden"],
+  "metadata": {
+    "organization": "Example Garden Club",
+    "source": "https://github.com/example/core/tree/main/policies"
+  }
+}
+```
+
+`metadata` is shown to members with the policy. The build adds `layers` and
+`commit`, so those two keys are its own.
+
+## Tests
+
+Each service's tests run on its own rules, so they check its defaults; the
+organization's then run on everything together:
+
+```bash
+fg-dist policy test     # in a distribution
+fg-policy test --base apps/members/policies --dir policies
+```

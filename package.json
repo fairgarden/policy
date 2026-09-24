@@ -1,0 +1,74 @@
+{
+  "name": "@fairgarden/policy",
+  "version": "0.1.0-alpha.0",
+  "packageManager": "pnpm@10.28.0+sha512.05df71d1421f21399e053fde567cea34d446fa02c76571441bfc1c7956e98e363088982d940465fd34480d4d90a0668bc12362f8aa88000a64e83d0b0e47be48",
+  "description": "An organization's policy as Open Policy Agent bundles: built in layers from the repository, run in process, disclosed to members, every decision recorded",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fairgarden/policy.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "UNLICENSED",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./drizzle": {
+      "types": "./dist/drizzle.d.ts",
+      "default": "./dist/drizzle.js"
+    },
+    "./build": {
+      "types": "./dist/build.d.ts",
+      "default": "./dist/build.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "fg-policy": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch --preserveWatchOutput",
+    "lint": "eslint",
+    "test": "vitest run",
+    "canary": "fg-dist canary",
+    "release": "fg-dist release",
+    "release:check": "fg-dist release --check"
+  },
+  "dependencies": {
+    "@open-policy-agent/opa-wasm": "^1.10.0",
+    "jose": "^6.2.12",
+    "yaml": "^2.8.1"
+  },
+  "devDependencies": {
+    "@fairgarden/distribution": "^0.1.0-alpha.0",
+    "@types/node": "^26.6.2",
+    "@typescript-eslint/eslint-plugin": "^8.70.0",
+    "@typescript-eslint/parser": "^8.70.0",
+    "drizzle-orm": "^0.45.3",
+    "eslint": "^9.39.5",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.1"
+  },
+  "peerDependencies": {
+    "drizzle-orm": ">=0.45"
+  },
+  "peerDependenciesMeta": {
+    "drizzle-orm": {
+      "optional": true
+    }
+  }
+}

@@ -1,0 +1,137 @@
+# Bylaws as policy
+
+Much of what a group's bylaws say can be enforced by the services it runs:
+who may join, who may vote, what it takes to approve something. Written as
+policy, the bylaws are enforced the same way every time, every decision is
+recorded, and anyone can read the rules that applied to them.
+
+The pattern is the same each time. A service asks a question when something
+is about to happen, with the evidence it holds; the organization's rules say
+what is still missing, in words the person is shown; the answer is yes when
+nothing is.
+
+## Who may join — with id and members today
+
+The members service asks `admit` when someone who is not a member wants to
+join, with what the id service vouches for about them and the member whose
+referral link they came with. Its own rules let anyone join; an
+organization's say otherwise. From `apps/members/examples/admission`:
+
+```rego
+package fairgarden.members
+
+import rego.v1
+
+# Article II §1: new members join on probation.
+status := "probationary"
+
+# Article II §2: with an email address the id service has verified.
+unmet["email"] := "Verify your email address in your account first." if not input.applicant.email_verified
+
+# Article II §3: referred by an active member.
+unmet["referral"] := "A member needs to refer you. Ask one for a referral link." if {
+	not input.referral.by.status == "active"
+}
+
+# Article II §4: living in the area, which needs where you live, from your
+# account — so Members asks for it.
+extra_scopes contains "residential_address"
+
+unmet["area"] := sprintf("Membership is open to people who live in %s.", [club_area.name]) if {
+	input.applicant.residential_address.postal_code
+	not in_club_area
+}
+```
+
+An applicant sees every unmet requirement at once, and can share what they
+held back, fix their account, or check again. Where they live is as they gave
+it to the id service, which does not verify addresses; without its settings,
+the example treats nobody as living in the area, rather than everybody. When referrals are required, the first members are added with
+`pnpm members add`.
+
+## Beyond membership
+
+These need services that record sign-offs, votes and hours — none exists yet.
+`examples/bylaws` in this package has them, with the questions such services
+would ask as a base layer, and the bylaws on top, tested:
+
+```bash
+fg-policy test --base examples/bylaws/services --dir examples/bylaws/organization
+```
+
+The numbers are settings, in the organization's
+`fairgarden/bylaws/data.json`, so amending one is a one-line change:
+
+```json
+{ "signoffs": 2, "voting_hours": 25, "removal": 0.5, "offices": { "secretary": { "elected": true } } }
+```
+
+### Approving an event takes two voting members
+
+```rego
+package fairgarden.events
+
+# Article V §2: an event is announced once two voting members have signed it off.
+voting_signoffs := {signoff.by.name | some signoff in input.signoffs; signoff.by.voting}
+
+unmet["signoffs"] := sprintf("%d of the %d voting members it needs have signed it off.", [count(voting_signoffs), bylaws.signoffs]) if {
+	count(voting_signoffs) < bylaws.signoffs
+}
+```
+
+Whether a signer votes is the members service's decision, below, passed
+along in their membership claim.
+
+### Voting takes 25 volunteer hours
+
+```rego
+package fairgarden.members.governance
+
+# Article III §1: a member votes once they have given 25 volunteer hours.
+unmet_voting["hours"] := sprintf("%d more volunteer hours, to vote.", [bylaws.voting_hours - hours]) if {
+	hours := object.get(input.member, "volunteer_hours", 0)
+	hours < bylaws.voting_hours
+}
+```
+
+### Removing a member takes half the members
+
+```rego
+# Article VII §1: a member is removed only when half the members who may vote agree.
+unmet_removal["votes"] := sprintf("%d more votes for it: half the voting members must agree.", [needed - input.votes.for]) if {
+	needed := ceil(input.voters * bylaws.removal)
+	input.votes.for < needed
+}
+```
+
+### Officers win a majority
+
+```rego
+# Article VI §1: officers are elected, by a majority of the votes cast.
+unmet_appointment["majority"] := sprintf("%s won %d of %d votes cast: not a majority.", [input.candidate.name, won, cast]) if {
+	bylaws.offices[input.office].elected
+	won := object.get(input.election.votes, input.candidate.name, 0)
+	cast := sum([count | some count in input.election.votes])
+	won * 2 <= cast
+}
+```
+
+## Pointing to the bylaws
+
+A rule can say which article it enforces, in its `# METADATA`, and the
+policy page links to it:
+
+```rego
+# METADATA
+# title: Who may join
+# related_resources:
+#   - ref: https://example.org/club/bylaws#article-2
+#     description: Bylaws, Article II
+# entrypoint: true
+```
+
+## What policy cannot do
+
+Policy decides from what it is given. It cannot hold a vote, count hours or
+check an address: a service records those, and asks the policy what they
+add up to. The bylaws decide the thresholds; the services keep the evidence.

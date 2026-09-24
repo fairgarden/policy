@@ -1,0 +1,77 @@
+# The decision log
+
+Every decision is recorded — built-in or Rego, allowed or not, made or failed
+— as OPA records its own:
+
+```json
+{
+  "decision_id": "6f1c7e2a-…",
+  "path": "fairgarden/id/release",
+  "input": { "user": { "name": "d4618cea-…" }, "client": { "id": "events", "name": "Events" }, "scopes": ["openid", "residential_address"], "purpose": "Consent" },
+  "result": { "scopes": ["openid"], "reasons": { "residential_address": "Only Members may ask where you live." } },
+  "timestamp": "2026-09-24T17:39:32.319Z",
+  "labels": { "service": "id", "engine": "bundle", "revision": "2026.10.01+3f9a2c1e4b5d" },
+  "metrics": { "timer_rego_query_eval_ns": 184000 }
+}
+```
+
+so anything that reads OPA's decision logs reads these. `labels` always has
+`engine` and `revision`, and whatever the service adds.
+
+## Revisions
+
+Every build of a policy is named by what is in it: the distribution's version,
+and a digest of every rule and setting — `2026.10.01+3f9a2c1e4b5d`. The same
+rules are the same revision in every service and every deploy; any change is
+a new one. The commit it was built from is recorded beside it.
+
+Each service keeps every revision it runs, whole, the first time it runs it:
+
+```ts
+// lib/schema.ts
+export const policyRevisions = revisionTable('id_policy_revisions')
+
+// lib/policy.ts
+createPolicy<IdDecisions>({
+  onRevision: drizzleRevisions(db, policyRevisions).record,
+  …
+})
+```
+
+so any decision in the log, however old, can be read beside the rules that
+made it. The id service shows one at `/policy?revision=…`, and links each
+decision on a person's account page to it.
+
+## Loggers
+
+A logger is a function given each entry. Every logger is awaited before
+`decide` returns, so a serverless function does not end before its decisions
+are written; one failing costs only its own copy, and is reported.
+
+- **Postgres, through Drizzle** — `decisionLogTable('id_policy_decisions')` in
+  the schema, and `drizzleLogger(db, table)`. Entries are filed under
+  `input.user.name` (or whatever `subject` says), and indexed by it and by
+  time. `toEntry` turns a row back into the entry, for exporting.
+- **JSON lines** — `jsonLinesLogger()`, one entry per line on standard output,
+  where a log drain picks it up.
+- **Anything else** — any `(entry) => void | Promise<void>`.
+
+## Leaving things out
+
+A log is kept a long time, so keep what it needs and no more. `erase` lists
+JSON pointers, per decision, removed before any logger sees the entry, and
+records them in `erased`:
+
+```ts
+createPolicy<MembersDecisions>({
+  // What was on offer need not be kept: the result records what left.
+  erase: { release: ['/input/claims'] },
+  …
+})
+```
+
+## Keeping it
+
+How long is the service's call: the id and members services keep 400 days by
+default. Both export theirs with `pnpm policy:log`, as JSON lines, by subject,
+decision and time.

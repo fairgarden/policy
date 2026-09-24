@@ -1,0 +1,43 @@
+# Overview
+
+A community's rules — who may join, who may vote, what is shared and with
+whom — are usually scattered through code as `if` statements: hard to find,
+harder to review, and invisible to the people they apply to. This package
+puts them in one policy the organization owns.
+
+## Who writes what
+
+- **Each service** names the decisions it makes and asks them at the right
+  moment, with the evidence it holds: the members service asks `admit` when
+  someone wants to join, with what the id service vouches for about them and
+  who referred them. It ships [built-in rules](/overview/decisions), and the
+  same rules in Rego with places for an organization to add its own.
+- **The organization** writes its rules on top: its bylaws, its privacy
+  policy. They live in the distribution's `policies/`, beside `apps/` and
+  `packages/`, and change the way the rest of the repository does — by pull
+  request, reviewed by the people responsible.
+
+See [Layers](/overview/layers) for how the two fit, and
+[Bylaws as policy](/overview/bylaws) for what an organization writes.
+
+## How it reaches the services
+
+The policy is built from the repository when the distribution is deployed —
+once, however many services run it — and each service runs its copy in its
+own process. There is no workflow to run and nothing to publish: what is in
+the repository is what runs. See [Deploying](/overview/deploying).
+
+## Decisions people can see
+
+A decision that says no says why, in words the person it is about is shown:
+the members service lists what an applicant must still do, and the id service
+shows each thing it will not offer a service, and why. The id service also
+shows the whole policy at `/policy` — what each decision is for, in the
+organization's words, and every rule — so anyone can read what governs them.
+
+## Every decision recorded
+
+Each decision is logged in the format OPA logs its own, labelled with the
+[revision](/overview/decision-log#revisions) of the policy that made it, and
+each revision is kept. So any decision, however old, can be read beside the
+exact rules that made it.
