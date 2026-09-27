@@ -45,9 +45,10 @@
     "lint": "eslint",
     "test": "vitest run",
     "canary": "fg-dist canary",
-    "release": "fg-dist release",
     "release:check": "fg-dist release --check",
-    "changelog": "fg-dist changelog"
+    "changelog": "fg-dist changelog",
+    "dist": "fg-dist",
+    "next-version": "fg-dist next-version"
   },
   "dependencies": {
     "@open-policy-agent/opa-wasm": "^1.10.0",
@@ -55,7 +56,7 @@
     "yaml": "^2.8.1"
   },
   "devDependencies": {
-    "@fairgarden/distribution": "^0.1.0-alpha.3",
+    "@fairgarden/distribution": "^0.1.0-alpha.6",
     "@types/node": "^26.6.2",
     "@typescript-eslint/eslint-plugin": "^8.70.0",
     "@typescript-eslint/parser": "^8.70.0",
