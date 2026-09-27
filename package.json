@@ -34,7 +34,7 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "fg-policy": "./dist/cli.js"
+    "fg-policy": "dist/cli.js"
   },
   "files": [
     "dist"
@@ -46,7 +46,8 @@
     "test": "vitest run",
     "canary": "fg-dist canary",
     "release": "fg-dist release",
-    "release:check": "fg-dist release --check"
+    "release:check": "fg-dist release --check",
+    "changelog": "fg-dist changelog"
   },
   "dependencies": {
     "@open-policy-agent/opa-wasm": "^1.10.0",
@@ -54,7 +55,7 @@
     "yaml": "^2.8.1"
   },
   "devDependencies": {
-    "@fairgarden/distribution": "^0.1.0-alpha.0",
+    "@fairgarden/distribution": "^0.1.0-alpha.2",
     "@types/node": "^26.6.2",
     "@typescript-eslint/eslint-plugin": "^8.70.0",
     "@typescript-eslint/parser": "^8.70.0",
